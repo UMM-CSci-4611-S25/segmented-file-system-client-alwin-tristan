@@ -15,6 +15,14 @@ pub enum Packet {
     HeaderPacket(HeaderPacket),
     DataPacket(DataPacket)
 }
+
+impl Packet {
+    fn try_into(self) -> Result<u8,PacketParseError>{
+
+        let status_byte = self;
+        todo!()
+    }
+}
 #[derive(Debug)]
 pub enum PacketParseError {
     
@@ -24,11 +32,13 @@ pub struct HeaderPacket {
     status_byte: u8,
     file_id: u8,
     file_name: OsString
-    
 }
 
+pub trait try_into {
+    
+}
 impl HeaderPacket {
-    f
+    fn try_into(self) -> Result<HeaderPacket, PacketParseError>;
 }
 
 pub struct  DataPacket {
@@ -41,6 +51,7 @@ pub struct  DataPacket {
 
 pub struct PacketGroup {
     file_name: Option<OsString>,
+    file_id: u8,
     expected_number_of_packets: Option<usize>,
     packets: HashMap<u16,Vec<u8>>
 }
@@ -55,15 +66,26 @@ impl FileManager {
         Self { packet_groups: packet_groups }
     }
 
-    fn received_all_packets() {
+    pub fn received_all_packets(&self) -> bool {
+        let mut received: bool = false;
+        for packet_group in &self.packet_groups {
+            if packet_group.expected_number_of_packets == Some(packet_group.packets.len()) {
+                received = true
+            } else {
+                received = false
+            }
+        }
+
+        return received;
+    }
+
+    pub fn process_packet(packet: Packet) {
+        // let packet_status_byte: u8 = bytes[0];
+        // if 
         todo!()
     }
 
-    fn process_packet() {
-        todo!()
-    }
-
-    fn write_all_files() {
+    pub fn write_all_files() {
         todo!()
     }
 }
