@@ -8,7 +8,7 @@
 // delete it and write your own code with the same function signature.
 
 use std::{
-    collections::HashMap, ffi::OsString, io::{self, Write}, net::UdpSocket
+    collections::HashMap, ffi::OsString, io::{self, Write}, net::UdpSocket, str::{self, Bytes, FromStr}
 };
 
 pub enum Packet {
@@ -16,11 +16,24 @@ pub enum Packet {
     DataPacket(DataPacket)
 }
 
-impl Packet {
-    fn try_into(self) -> Result<u8,PacketParseError>{
+impl TryFrom<&[u8]> for Packet {
+    type Error = PacketParseError;
 
-        let status_byte = self;
-        todo!()
+    fn try_from(bytes: &[u8]) -> Result<Packet, PacketParseError> {
+        let status_byte: u8 = bytes[0];
+        if status_byte == 0 { 
+            // Header Packet
+            let file_id: u8 = bytes[1];
+            let file_name = OsString::from_str(str::from_utf8(&bytes[2..bytes.len()]).unwrap()).unwrap(); // Uhhhhhh what is this line... there is probably a better way to do this?
+            return Ok(Packet::HeaderPacket(HeaderPacket{status_byte,file_id,file_name}));
+        } else {
+            // Data Packet
+            let file_id: u8 = bytes[1];
+            let packet_number_bytes: [u8; 2] = [bytes[2], bytes[3]];
+            let packet_number: u16 = u16::from_be_bytes(packet_number_bytes);
+            let data: Vec<u8> = bytes[3..bytes.len()].to_vec();
+            return Ok(Packet::DataPacket(DataPacket{status_byte,file_id,packet_number,data}));
+        }
     }
 }
 #[derive(Debug)]
@@ -34,11 +47,15 @@ pub struct HeaderPacket {
     file_name: OsString
 }
 
-pub trait try_into {
+// pub trait try_into {
     
-}
+// }
+
 impl HeaderPacket {
-    fn try_into(self) -> Result<HeaderPacket, PacketParseError>;
+    // fn try_from(self) -> Result<HeaderPacket, PacketParseError> {
+
+    //     todo!()
+    // }
 }
 
 pub struct  DataPacket {
