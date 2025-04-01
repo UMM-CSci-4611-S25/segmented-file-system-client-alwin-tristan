@@ -11,6 +11,7 @@ use std::{
     collections::HashMap, ffi::OsString, io::{self, Write}, net::UdpSocket, str::{self, Bytes, FromStr}
 };
 
+#[derive(Debug,PartialEq)]
 pub enum Packet {
     HeaderPacket(HeaderPacket),
     DataPacket(DataPacket)
@@ -19,45 +20,41 @@ pub enum Packet {
 impl TryFrom<&[u8]> for Packet {
     type Error = PacketParseError;
 
-    fn try_from(bytes: &[u8]) -> Result<Packet, PacketParseError> {
+    fn try_from(bytes: &[u8]) -> Result<Self, PacketParseError> {
         let status_byte: u8 = bytes[0];
         if status_byte == 0 { 
-            // Header Packet
-            let file_id: u8 = bytes[1];
-            let file_name = OsString::from_str(str::from_utf8(&bytes[2..bytes.len()]).unwrap()).unwrap(); // Uhhhhhh what is this line... there is probably a better way to do this?
-            return Ok(Packet::HeaderPacket(HeaderPacket{status_byte,file_id,file_name}));
+            return Ok(Packet::HeaderPacket(HeaderPacket::try_from(bytes)?));
+            // let file_name = OsString::from_str(str::from_utf8(&bytes[2..bytes.len()]).unwrap()).unwrap(); // Uhhhhhh what is this line... there is probably a better way to do this?
         } else {
-            // Data Packet
-            let file_id: u8 = bytes[1];
-            let packet_number_bytes: [u8; 2] = [bytes[2], bytes[3]];
-            let packet_number: u16 = u16::from_be_bytes(packet_number_bytes);
-            let data: Vec<u8> = bytes[3..bytes.len()].to_vec();
-            return Ok(Packet::DataPacket(DataPacket{status_byte,file_id,packet_number,data}));
+            return Ok(Packet::DataPacket(DataPacket::try_from(bytes)?));
         }
     }
+    
 }
 #[derive(Debug)]
 pub enum PacketParseError {
     
 }
 
+#[derive(Debug,PartialEq)]
 pub struct HeaderPacket {
     status_byte: u8,
     file_id: u8,
     file_name: OsString
 }
 
-// pub trait try_into {
-    
-// }
+impl TryFrom<&[u8]> for HeaderPacket {
+    type Error = PacketParseError;
 
-impl HeaderPacket {
-    // fn try_from(self) -> Result<HeaderPacket, PacketParseError> {
-
-    //     todo!()
-    // }
+    fn try_from(bytes: &[u8]) -> Result<Self, PacketParseError> {
+        let status_byte: u8 = bytes[0];
+        let file_id: u8 = bytes[1];
+        let file_name: OsString = unsafe { OsString::from_encoded_bytes_unchecked(bytes[2..bytes.len()].to_vec()) };
+        Ok(HeaderPacket { status_byte: status_byte, file_id: file_id, file_name: file_name })
+    }
 }
 
+#[derive(Debug,PartialEq)]
 pub struct  DataPacket {
     status_byte: u8,
     file_id: u8,
@@ -65,6 +62,18 @@ pub struct  DataPacket {
     data: Vec<u8>,
 }
 
+impl TryFrom<&[u8]> for DataPacket {
+    type Error = PacketParseError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, PacketParseError> {
+        let status_byte: u8 = bytes[0];
+        let file_id: u8 = bytes[1];
+        let packet_number_bytes: [u8; 2] = [bytes[2], bytes[3]];
+        let packet_number: u16 = u16::from_be_bytes(packet_number_bytes);
+        let data: Vec<u8> = bytes[4..bytes.len()].to_vec();
+        Ok(DataPacket{status_byte,file_id,packet_number,data})
+    }
+}
 
 pub struct PacketGroup {
     file_name: Option<OsString>,
@@ -125,27 +134,102 @@ impl From<PacketParseError> for ClientError {
     }
 }
 
-fn main() -> Result<(), ClientError> {
-    let sock = UdpSocket::bind("0.0.0.0:7077")?;
+// fn main() -> Result<(), ClientError> {
+//     let sock = UdpSocket::bind("0.0.0.0:7077")?;
 
-    let remote_addr = "127.0.0.1:6014";
-    sock.connect(remote_addr)?;
-    let mut buf = [0; 1028];
+//     let remote_addr = "127.0.0.1:6014";
+//     sock.connect(remote_addr)?;
+//     let mut buf = [0; 1028];
 
-    let _ = sock.send(&buf[..1028]);
+//     let _ = sock.send(&buf[..1028]);
 
-    let mut file_manager = FileManager::default();
+//     let mut file_manager = FileManager::default();
 
-    while !file_manager.received_all_packets() {
-        let len = sock.recv(&mut buf)?;
-        let packet: Packet = buf[..len].try_into()?;
-        print!(".");
-        io::stdout().flush()?;
-        file_manager.process_packet(packet);
-    }
+//     while !file_manager.received_all_packets() {
+//         let len = sock.recv(&mut buf)?;
+//         let packet: Packet = buf[..len].try_into()?;
+//         print!(".");
+//         io::stdout().flush()?;
+//         file_manager.process_packet(packet);
+//     }
 
-    file_manager.write_all_files()?;
+//     file_manager.write_all_files()?;
 
-    Ok(())
+//     Ok(())
+// }
+
+fn main() {
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn test_try_into_header_packet() {
+       let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't']; // status_byte, file_id, file_name
+       let packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
+
+       assert_eq!(packet, HeaderPacket{status_byte: 0, file_id: 1, file_name:  OsString::from("test")})
+    }
+
+    #[test]
+    fn test_try_into_data_packet() {
+       let data_packet_bytes: [u8; 6] = [1, 1, 2, 2, 3, 3]; // status_byte, file_id, file_name
+       let packet = DataPacket::try_from(&data_packet_bytes[..]).unwrap();
+
+       assert_eq!(packet, DataPacket{status_byte: 1, file_id: 1, packet_number: 514, data: vec![3,3]})
+    }
+}
+
+#[cfg(test)]
+mod tests1 {
+    use super::*;
+
+    #[test]
+    fn test_header_packet_parsing() {
+        // Status byte is even (0), indicating a header packet
+        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't']; // status_byte, file_id, file_name
+        let packet = Packet::try_from(&header_packet_bytes[..]).unwrap();
+
+        if let Packet::HeaderPacket(header) = packet {
+            assert_eq!(header.status_byte, 0);
+            assert_eq!(header.file_id, 1);
+            assert_eq!(header.file_name, OsString::from("test"));
+        } else {
+            panic!("Expected a HeaderPacket");
+        }
+    }
+
+    #[test]
+    fn test_data_packet_parsing() {
+        // Status byte is odd (1), indicating a data packet
+        let data_packet_bytes: [u8; 8] = [1, 2, 0, 1, b'd', b'a', b't', b'a']; // status_byte, file_id, packet_number, data
+        let packet = Packet::try_from(&data_packet_bytes[..]).unwrap();
+
+        if let Packet::DataPacket(data) = packet {
+            assert_eq!(data.status_byte, 1);
+            assert_eq!(data.file_id, 2);
+            assert_eq!(data.packet_number, 1);
+            assert_eq!(data.data, b"data".to_vec());
+        } else {
+            panic!("Expected a DataPacket");
+        }
+    }
+
+    #[test]
+    fn test_last_data_packet_parsing() {
+        // Status byte is 3 (3 mod 4), indicating the last data packet
+        let last_data_packet_bytes: [u8; 8] = [3, 2, 0, 2, b'l', b'a', b's', b't']; // status_byte, file_id, packet_number, data
+        let packet = Packet::try_from(&last_data_packet_bytes[..]).unwrap();
+
+        if let Packet::DataPacket(data) = packet {
+            assert_eq!(data.status_byte, 3);
+            assert_eq!(data.file_id, 2);
+            assert_eq!(data.packet_number, 2);
+            assert_eq!(data.data, b"last".to_vec());
+        } else {
+            panic!("Expected a DataPacket");
+        }
+    }
+}
