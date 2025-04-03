@@ -7,6 +7,7 @@
 // You can use this code as a starting point for the exercise, or you can
 // delete it and write your own code with the same function signature.
 
+#[allow(unused_imports)]
 use std::{
     collections::HashMap, ffi::OsString, io::{self, Write}, net::UdpSocket, str::{self, Bytes, FromStr}
 };
@@ -61,7 +62,7 @@ impl TryFrom<&[u8]> for HeaderPacket {
         let status_byte: u8 = bytes[0];
         let file_id: u8 = bytes[1];
         let file_name: OsString = unsafe { OsString::from_encoded_bytes_unchecked(bytes[2..bytes.len()].to_vec()) };
-        Ok(HeaderPacket { status_byte: status_byte, file_id: file_id, file_name: file_name })
+        Ok(HeaderPacket { status_byte, file_id, file_name })
     }
 }
 
@@ -107,7 +108,7 @@ pub struct FileManager {
 impl FileManager {
     fn default() -> Self {
         let packet_groups = vec![];
-        Self { packet_groups: packet_groups }
+        Self { packet_groups }
     }
 
     pub fn received_all_packets(&self) -> bool {
@@ -168,7 +169,7 @@ impl FileManager {
 
         let mut packets = HashMap::new();
         packets.insert(data_packet.packet_number, data_packet.data);
-        let packet_group = PacketGroup { file_name: None, file_id: packet_id, expected_number_of_packets: Some(0), packets: packets };
+        let packet_group = PacketGroup { file_name: None, file_id: packet_id, expected_number_of_packets: Some(0), packets };
         self.packet_groups.push(packet_group);
     }
 
