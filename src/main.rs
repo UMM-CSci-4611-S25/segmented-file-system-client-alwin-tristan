@@ -21,6 +21,10 @@ impl Packet {
     pub fn new_header(bytes: &[u8]) -> Result<Self, PacketParseError> {
         Ok(Packet::HeaderPacket(HeaderPacket::try_from(bytes)?))
     }
+
+    pub fn new_data(bytes: &[u8]) -> Result<Self, PacketParseError> {
+        Ok(Packet::DataPacket(DataPacket::try_from(bytes)?))
+    }
 }
 
 impl TryFrom<&[u8]> for Packet {
@@ -33,7 +37,7 @@ impl TryFrom<&[u8]> for Packet {
             // Packet::HeaderPacket(HeaderPacket::try_from(bytes)?)
             // let file_name = OsString::from_str(str::from_utf8(&bytes[2..bytes.len()]).unwrap()).unwrap(); // Uhhhhhh what is this line... there is probably a better way to do this?
         } else {
-            Packet::DataPacket(DataPacket::try_from(bytes)?)
+            Packet::new_data(bytes)?
         })
     }
     
