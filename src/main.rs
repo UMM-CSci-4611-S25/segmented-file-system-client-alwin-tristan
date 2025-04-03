@@ -124,7 +124,8 @@ impl FileManager {
     }
 
     pub fn process_packet(&mut self, packet: Packet) {
-        // create a new PacketGroup if there is none for the current file and puts packet in that in correct order
+        // create a new PacketGroup if there is none for the current file and puts packet in that in correct order. 
+        // check if a packet group has the file id of current packet and if not then create it.
         // flags if it is last in packet (when it appears)
 
         match packet {
@@ -132,12 +133,7 @@ impl FileManager {
             Packet::DataPacket(data_packet) => self.process_data_packet(data_packet),
         }
 
-        // check if a packet group has the file id of current packet and if not then create it.
-        // let packet_status = u
-        // // let packet_id = packet
-        // if self.packet_groups.contains(x) {
-        //     self.packet_groups.push();
-        // }
+        
 
     }
 
@@ -223,6 +219,7 @@ impl From<PacketParseError> for ClientError {
 //     Ok(())
 // }
 // Don't fully delete. This is for testing purposes
+
  fn main(){
 
  }
@@ -235,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_try_into_header_packet() {
-       let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't']; // status_byte, file_id, file_name
+       let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't'];
        let packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
 
        assert_eq!(packet, HeaderPacket{status_byte: 0, file_id: 1, file_name:  OsString::from("test")})
@@ -243,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_try_into_data_packet() {
-       let data_packet_bytes: [u8; 6] = [1, 1, 2, 2, 3, 3]; // status_byte, file_id, file_name
+       let data_packet_bytes: [u8; 6] = [1, 1, 2, 2, 3, 3];
        let packet = DataPacket::try_from(&data_packet_bytes[..]).unwrap();
 
        assert_eq!(packet, DataPacket{status_byte: 1, file_id: 1, packet_number: 514, data: vec![3,3]})
@@ -254,7 +251,7 @@ mod tests {
         let packet_group1: PacketGroup = PacketGroup { file_name: Some(OsString::from("test")), file_id: 4, expected_number_of_packets: None, packets: HashMap::new() };
         let mut file_manager: FileManager = FileManager { packet_groups: vec![packet_group1] };
 
-        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't']; // status_byte, file_id, file_name
+        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't'];
         let packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
 
         file_manager.process_packet(Packet::HeaderPacket(packet));
@@ -266,7 +263,7 @@ mod tests {
     fn test_empty_process_header_packet() {
         let mut file_manager: FileManager = FileManager { packet_groups: vec![] };
 
-        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't']; // status_byte, file_id, file_name
+        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't'];
         let packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
 
         assert!(file_manager.packet_groups.is_empty());
