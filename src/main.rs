@@ -106,10 +106,10 @@ pub struct FileManager {
 }
 
 impl FileManager {
-    fn default() -> Self {
-        let packet_groups = vec![];
-        Self { packet_groups }
-    }
+    // fn default() -> Self {
+    //     let packet_groups = vec![];
+    //     Self { packet_groups }
+    // }
 
     pub fn received_all_packets(&self) -> bool {
         let mut received: bool = false;
@@ -227,8 +227,6 @@ impl From<PacketParseError> for ClientError {
 
 #[cfg(test)]
 mod tests {
-    use std::result;
-
     use crate::*;
 
     #[test]
