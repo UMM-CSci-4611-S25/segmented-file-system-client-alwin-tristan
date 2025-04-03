@@ -73,6 +73,13 @@ pub struct  DataPacket {
     data: Vec<u8>,
 }
 
+impl DataPacket {
+    pub fn is_last_data_packet(&self) -> bool {
+        self.status_byte % 4 == 3 
+    }
+    // x % 4 == 3
+}
+
 impl TryFrom<&[u8]> for DataPacket {
     type Error = PacketParseError;
 
@@ -144,12 +151,29 @@ impl FileManager {
             }
         }
         
-        let packet_group = PacketGroup{ file_name: Some(header_packet.file_name), file_id: header_packet.file_id, expected_number_of_packets: None, packets: HashMap::new() };
+        let packet_group = PacketGroup{ file_name: Some(header_packet.file_name), file_id: packet_id, expected_number_of_packets: None, packets: HashMap::new() };
         self.packet_groups.push(packet_group);
     }
 
     pub fn process_data_packet(&mut self, data_packet: DataPacket) {
+        let packet_id = data_packet.file_id;
+        let is_last_data_packet = data_packet.is_last_data_packet();
 
+        for packet_group in &mut self.packet_groups {
+            if packet_group.file_id == packet_id {
+                // TODO: Expected Packets
+                if is_last_data_packet {
+                    // let expected_num_packets = 
+                }
+                packet_group.packets.insert(data_packet.packet_number, data_packet.data);
+                return;
+            }
+        }
+
+        let mut packets = HashMap::new();
+        packets.insert(data_packet.packet_number, data_packet.data);
+        let packet_group = PacketGroup { file_name: None, file_id: packet_id, expected_number_of_packets: Some(0), packets: packets };
+        self.packet_groups.push(packet_group);
     }
 
     pub fn write_all_files(&self) {
@@ -250,5 +274,36 @@ mod tests {
         assert_eq!(file_manager.packet_groups.len(), 1);
         assert_eq!(file_manager.packet_groups[0].file_name, Some(OsString::from("test")));
         assert_eq!(file_manager.packet_groups[0].file_id, 1)
+    }
+
+    #[test]
+    fn test_process_data_packet() {
+        let packet_group1: PacketGroup = PacketGroup { file_name: Some(OsString::from("test")), file_id: 4, expected_number_of_packets: None, packets: HashMap::new() };
+        let mut file_manager: FileManager = FileManager { packet_groups: vec![] };
+
+        let data_packet_bytes: [u8; 6] = [1, 1, 2, 2, 3, 3];
+        let packet = DataPacket::try_from(&data_packet_bytes[..]).unwrap();
+
+        file_manager.process_packet(Packet::DataPacket(packet));
+        assert!(file_manager.packet_groups[0].packets.contains_key(&514));
+        assert_eq!(file_manager.packet_groups[0].packets.get(&514), Some(&vec![3,3]))
+
+        // TODO: Test expected_number_of_packets
+    }
+
+    #[test]
+    fn test_empty_process_data_packet() {
+        let mut file_manager: FileManager = FileManager { packet_groups: vec![] };
+
+        let data_packet_bytes: [u8; 6] = [1, 1, 2, 2, 3, 3];
+        let packet = DataPacket::try_from(&data_packet_bytes[..]).unwrap();
+
+        assert!(file_manager.packet_groups.is_empty());
+        file_manager.process_packet(Packet::DataPacket(packet));
+        assert_eq!(file_manager.packet_groups.len(), 1);
+        assert!(file_manager.packet_groups[0].packets.contains_key(&514));
+        assert_eq!(file_manager.packet_groups[0].packets.get(&514), Some(&vec![3,3]))
+
+        // TODO: Test expected_number_of_packets
     }
 }
