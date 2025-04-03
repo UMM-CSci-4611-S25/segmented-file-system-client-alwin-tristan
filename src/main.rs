@@ -17,17 +17,24 @@ pub enum Packet {
     DataPacket(DataPacket)
 }
 
+impl Packet {
+    pub fn new_header(bytes: &[u8]) -> Result<Self, PacketParseError> {
+        Ok(Packet::HeaderPacket(HeaderPacket::try_from(bytes)?))
+    }
+}
+
 impl TryFrom<&[u8]> for Packet {
     type Error = PacketParseError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, PacketParseError> {
         let status_byte: u8 = bytes[0];
-        if status_byte == 0 { 
-            return Ok(Packet::HeaderPacket(HeaderPacket::try_from(bytes)?));
+        Ok(if status_byte == 0 { 
+            Packet::new_header(bytes)?
+            // Packet::HeaderPacket(HeaderPacket::try_from(bytes)?)
             // let file_name = OsString::from_str(str::from_utf8(&bytes[2..bytes.len()]).unwrap()).unwrap(); // Uhhhhhh what is this line... there is probably a better way to do this?
         } else {
-            return Ok(Packet::DataPacket(DataPacket::try_from(bytes)?));
-        }
+            Packet::DataPacket(DataPacket::try_from(bytes)?)
+        })
     }
     
 }
@@ -105,10 +112,40 @@ impl FileManager {
         return received;
     }
 
-    pub fn process_packet(&self, packet: Packet) {
+    pub fn process_packet(&mut self, packet: Packet) {
         // create a new PacketGroup if there is none for the current file and puts packet in that in correct order
         // flags if it is last in packet (when it appears)
-        todo!()
+
+        match packet {
+            Packet::HeaderPacket(header_packet) => self.process_header_packet(header_packet),
+            Packet::DataPacket(data_packet) => self.process_data_packet(data_packet),
+        }
+
+        // check if a packet group has the file id of current packet and if not then create it.
+        // let packet_status = u
+        // // let packet_id = packet
+        // if self.packet_groups.contains(x) {
+        //     self.packet_groups.push();
+        // }
+
+    }
+
+    pub fn process_header_packet(&mut self, header_packet: HeaderPacket) {
+        let packet_id = header_packet.file_id;
+
+        for packet_group in &mut self.packet_groups {
+            if packet_group.file_id == packet_id {
+                packet_group.file_name = Some(header_packet.file_name);
+                return;
+            }
+        }
+        
+        let packet_group = PacketGroup{ file_name: Some(header_packet.file_name), file_id: header_packet.file_id, expected_number_of_packets: None, packets: HashMap::new() };
+        self.packet_groups.push(packet_group);
+    }
+
+    pub fn process_data_packet(&mut self, data_packet: DataPacket) {
+
     }
 
     pub fn write_all_files(&self) {
@@ -134,32 +171,38 @@ impl From<PacketParseError> for ClientError {
     }
 }
 
-fn main() -> Result<(), ClientError> {
-    let sock = UdpSocket::bind("0.0.0.0:7077")?;
+// fn main() -> Result<(), ClientError> {
+//     let sock = UdpSocket::bind("0.0.0.0:7077")?;
 
-    let remote_addr = "127.0.0.1:6014";
-    sock.connect(remote_addr)?;
-    let mut buf = [0; 1028];
+//     let remote_addr = "127.0.0.1:6014";
+//     sock.connect(remote_addr)?;
+//     let mut buf = [0; 1028];
 
-    let _ = sock.send(&buf[..1028]);
+//     let _ = sock.send(&buf[..1028]);
 
-    let mut file_manager = FileManager::default();
+//     let mut file_manager = FileManager::default();
 
-    while !file_manager.received_all_packets() {
-        let len = sock.recv(&mut buf)?;
-        let packet: Packet = buf[..len].try_into()?;
-        print!(".");
-        io::stdout().flush()?;
-        file_manager.process_packet(packet);
-    }
+//     while !file_manager.received_all_packets() {
+//         let len = sock.recv(&mut buf)?;
+//         let packet: Packet = buf[..len].try_into()?;
+//         print!(".");
+//         io::stdout().flush()?;
+//         file_manager.process_packet(packet);
+//     }
 
-    file_manager.write_all_files()?;
+//     file_manager.write_all_files()?;
 
-    Ok(())
-}
+//     Ok(())
+// }
+// Don't fully delete. This is for testing purposes
+ fn main(){
+
+ }
 
 #[cfg(test)]
 mod tests {
+    use std::result;
+
     use crate::*;
 
     #[test]
@@ -176,5 +219,32 @@ mod tests {
        let packet = DataPacket::try_from(&data_packet_bytes[..]).unwrap();
 
        assert_eq!(packet, DataPacket{status_byte: 1, file_id: 1, packet_number: 514, data: vec![3,3]})
+    }
+
+    #[test]
+    fn test_process_header_packet() {
+        let packet_group1: PacketGroup = PacketGroup { file_name: Some(OsString::from("test")), file_id: 4, expected_number_of_packets: None, packets: HashMap::new() };
+        let mut file_manager: FileManager = FileManager { packet_groups: vec![packet_group1] };
+
+        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't']; // status_byte, file_id, file_name
+        let packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
+
+        file_manager.process_packet(Packet::HeaderPacket(packet));
+
+        assert_eq!(file_manager.packet_groups[0].file_name, Some(OsString::from("test")));
+    }
+
+    #[test]
+    fn test_empty_process_header_packet() {
+        let mut file_manager: FileManager = FileManager { packet_groups: vec![] };
+
+        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't']; // status_byte, file_id, file_name
+        let packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
+
+        assert!(file_manager.packet_groups.is_empty());
+        file_manager.process_packet(Packet::HeaderPacket(packet));
+        assert_eq!(file_manager.packet_groups.len(), 1);
+        assert_eq!(file_manager.packet_groups[0].file_name, Some(OsString::from("test")));
+        assert_eq!(file_manager.packet_groups[0].file_id, 1)
     }
 }
