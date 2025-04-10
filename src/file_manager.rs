@@ -1,7 +1,7 @@
 use super::packet::data_packet::DataPacket;
 use super::packet::header_packet::HeaderPacket;
 use super::packet::Packet;
-use super::PacketGroup;
+use super::packet_group::PacketGroup;
 use std::collections::HashMap;
 
 pub struct FileManager {
@@ -9,10 +9,10 @@ pub struct FileManager {
 }
 
 impl FileManager {
-    // fn default() -> Self {
-    //     let packet_groups = vec![];
-    //     Self { packet_groups }
-    // }
+    pub fn default() -> Self {
+        let packet_groups = vec![];
+        Self { packet_groups }
+    }
 
     pub fn received_all_packets(&self) -> bool {
         let mut received: bool = false;
@@ -94,7 +94,7 @@ impl FileManager {
 mod tests {
     use std::{collections::HashMap, ffi::OsString};
 
-    use crate::{file_manager::FileManager, packet::{data_packet::DataPacket, header_packet::HeaderPacket, Packet}, PacketGroup};
+    use crate::{file_manager::FileManager, packet::{data_packet::DataPacket, header_packet::HeaderPacket, Packet}, packet_group::PacketGroup};
 
 
     #[test]
@@ -160,8 +160,6 @@ mod tests {
             file_manager.packet_groups[1].packets.get(&514),
             Some(&vec![3, 3])
         );
-
-        // TODO: Test expected_number_of_packets
     }
 
     #[test]
@@ -183,5 +181,10 @@ mod tests {
         );
 
         // TODO: Test expected_number_of_packets
+    }
+
+    #[test]
+    fn test_expected_number_of_packets(){
+
     }
 }

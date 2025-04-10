@@ -20,14 +20,12 @@ use std::{
     str::{self, Bytes, FromStr},
 };
 
+use file_manager::FileManager;
+use packet::Packet;
+
 mod packet;
 
-pub struct PacketGroup {
-    file_name: Option<OsString>,
-    file_id: u8,
-    expected_number_of_packets: Option<usize>,
-    packets: HashMap<u16, Vec<u8>>,
-}
+mod packet_group;
 
 #[derive(Debug)]
 pub enum ClientError {
@@ -47,32 +45,32 @@ impl From<packet::PacketParseError> for ClientError {
     }
 }
 
-// fn main() -> Result<(), ClientError> {
-//     let sock = UdpSocket::bind("0.0.0.0:7077")?;
+fn main() -> Result<(), ClientError> {
+    let sock = UdpSocket::bind("0.0.0.0:7077")?;
 
-//     let remote_addr = "127.0.0.1:6014";
-//     sock.connect(remote_addr)?;
-//     let mut buf = [0; 1028];
+    let remote_addr = "127.0.0.1:6014";
+    sock.connect(remote_addr)?;
+    let mut buf = [0; 1028];
 
-//     let _ = sock.send(&buf[..1028]);
+    let _ = sock.send(&buf[..1028]);
 
-//     let mut file_manager = FileManager::default();
+    let mut file_manager = FileManager::default();
 
-//     while !file_manager.received_all_packets() {
-//         let len = sock.recv(&mut buf)?;
-//         let packet: Packet = buf[..len].try_into()?;
-//         print!(".");
-//         io::stdout().flush()?;
-//         file_manager.process_packet(packet);
-//     }
+    while !file_manager.received_all_packets() {
+        let len = sock.recv(&mut buf)?;
+        let packet: Packet = buf[..len].try_into()?;
+        print!(".");
+        io::stdout().flush()?;
+        file_manager.process_packet(packet);
+    }
 
-//     file_manager.write_all_files()?;
+    file_manager.write_all_files()?;
 
-//     Ok(())
-// }
+    Ok(())
+}
 // Don't fully delete. This is for testing purposes
 
-fn main() {}
+// fn main() {}
 
 // #[cfg(test)]
 // mod tests {
