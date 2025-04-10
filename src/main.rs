@@ -1,23 +1,36 @@
-fn main() {
-    println!("Hello, world!");
-}
-
 // Below is a version of the `main` function and some error types. This assumes
 // the existence of types like `FileManager`, `Packet`, and `PacketParseError`.
 // You can use this code as a starting point for the exercise, or you can
 // delete it and write your own code with the same function signature.
 
-/*
+#![warn(clippy::pedantic)]
+#![warn(clippy::style)]
+#![warn(clippy::perf)]
+#![warn(clippy::complexity)]
+#![warn(clippy::correctness)]
 
+mod file_manager;
+
+#[allow(unused_imports)]
 use std::{
+    collections::HashMap,
+    ffi::OsString,
     io::{self, Write},
     net::UdpSocket,
+    str::{self, Bytes, FromStr},
 };
+
+use file_manager::FileManager;
+use packet::Packet;
+
+mod packet;
+
+mod packet_group;
 
 #[derive(Debug)]
 pub enum ClientError {
     IoError(std::io::Error),
-    PacketParseError(PacketParseError),
+    PacketParseError(packet::PacketParseError),
 }
 
 impl From<std::io::Error> for ClientError {
@@ -26,8 +39,8 @@ impl From<std::io::Error> for ClientError {
     }
 }
 
-impl From<PacketParseError> for ClientError {
-    fn from(e: PacketParseError) -> Self {
+impl From<packet::PacketParseError> for ClientError {
+    fn from(e: packet::PacketParseError) -> Self {
         Self::PacketParseError(e)
     }
 }
@@ -55,5 +68,16 @@ fn main() -> Result<(), ClientError> {
 
     Ok(())
 }
+// Don't fully delete. This is for testing purposes
 
- */
+// fn main() {}
+
+// #[cfg(test)]
+// mod tests {
+//     use crate::{
+//         file_manager::FileManager,
+//         packet::{data_packet::DataPacket, header_packet::HeaderPacket, Packet},
+//         *,
+//     };
+
+// }
