@@ -24,3 +24,25 @@ impl TryFrom<&[u8]> for HeaderPacket {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use crate::packet::header_packet::HeaderPacket;
+
+    #[test]
+    fn test_try_into_header_packet() {
+        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't'];
+        let packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
+
+        assert_eq!(
+            packet,
+            HeaderPacket {
+                status_byte: 0,
+                file_id: 1,
+                file_name: OsString::from("test")
+            }
+        );
+    }
+}

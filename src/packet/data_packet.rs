@@ -34,3 +34,24 @@ impl TryFrom<&[u8]> for DataPacket {
         })
     }
 }
+
+mod tests {
+    use crate::packet::data_packet::DataPacket;
+
+    #[test]
+    fn test_try_into_data_packet() {
+        let data_packet_bytes: [u8; 6] = [1, 1, 2, 2, 3, 3];
+        let packet = DataPacket::try_from(&data_packet_bytes[..]).unwrap();
+
+        assert_eq!(
+            packet,
+            DataPacket {
+                status_byte: 1,
+                file_id: 1,
+                packet_number: 514,
+                data: vec![3, 3]
+            }
+        );
+    }
+}
+

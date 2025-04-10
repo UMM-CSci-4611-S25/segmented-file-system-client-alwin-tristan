@@ -89,3 +89,99 @@ impl FileManager {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, ffi::OsString};
+
+    use crate::{file_manager::FileManager, packet::{data_packet::DataPacket, header_packet::HeaderPacket, Packet}, PacketGroup};
+
+
+    #[test]
+    fn test_process_header_packet() {
+        let packet_group1: PacketGroup = PacketGroup {
+            file_name: Some(OsString::from("test")),
+            file_id: 4,
+            expected_number_of_packets: None,
+            packets: HashMap::new(),
+        };
+        let mut file_manager: FileManager = FileManager {
+            packet_groups: vec![packet_group1],
+        };
+
+        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't'];
+        let packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
+
+        file_manager.process_packet(Packet::HeaderPacket(packet));
+
+        assert_eq!(
+            file_manager.packet_groups[0].file_name,
+            Some(OsString::from("test"))
+        );
+    }
+
+    #[test]
+    fn test_empty_process_header_packet() {
+        let mut file_manager: FileManager = FileManager {
+            packet_groups: vec![],
+        };
+
+        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't'];
+        let packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
+
+        assert!(file_manager.packet_groups.is_empty());
+        file_manager.process_packet(Packet::HeaderPacket(packet));
+        assert_eq!(file_manager.packet_groups.len(), 1);
+        assert_eq!(
+            file_manager.packet_groups[0].file_name,
+            Some(OsString::from("test"))
+        );
+        assert_eq!(file_manager.packet_groups[0].file_id, 1);
+    }
+
+    #[test]
+    fn test_process_data_packet() {
+        let packet_group1: PacketGroup = PacketGroup {
+            file_name: Some(OsString::from("test")),
+            file_id: 4,
+            expected_number_of_packets: None,
+            packets: HashMap::new(),
+        };
+        let mut file_manager: FileManager = FileManager {
+            packet_groups: vec![packet_group1],
+        };
+
+        let data_packet_bytes: [u8; 6] = [1, 1, 2, 2, 3, 3];
+        let packet = DataPacket::try_from(&data_packet_bytes[..]).unwrap();
+
+        file_manager.process_packet(Packet::DataPacket(packet));
+        assert!(file_manager.packet_groups[1].packets.contains_key(&514));
+        assert_eq!(
+            file_manager.packet_groups[1].packets.get(&514),
+            Some(&vec![3, 3])
+        );
+
+        // TODO: Test expected_number_of_packets
+    }
+
+    #[test]
+    fn test_empty_process_data_packet() {
+        let mut file_manager: FileManager = FileManager {
+            packet_groups: vec![],
+        };
+
+        let data_packet_bytes: [u8; 6] = [1, 1, 2, 2, 3, 3];
+        let packet = DataPacket::try_from(&data_packet_bytes[..]).unwrap();
+
+        assert!(file_manager.packet_groups.is_empty());
+        file_manager.process_packet(Packet::DataPacket(packet));
+        assert_eq!(file_manager.packet_groups.len(), 1);
+        assert!(file_manager.packet_groups[0].packets.contains_key(&514));
+        assert_eq!(
+            file_manager.packet_groups[0].packets.get(&514),
+            Some(&vec![3, 3])
+        );
+
+        // TODO: Test expected_number_of_packets
+    }
+}
