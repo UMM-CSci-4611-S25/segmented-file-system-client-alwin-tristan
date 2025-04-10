@@ -1,8 +1,13 @@
+use crate::packet;
+
 use super::packet::data_packet::DataPacket;
 use super::packet::header_packet::HeaderPacket;
 use super::packet::Packet;
 use super::packet_group::PacketGroup;
 use std::collections::HashMap;
+use std::io;
+use std::fs::File;
+use std::io::prelude::*;
 
 pub struct FileManager {
     pub(crate) packet_groups: Vec<PacketGroup>,
@@ -17,7 +22,7 @@ impl FileManager {
     pub fn received_all_packets(&self) -> bool {
         let mut received: bool = false;
         for packet_group in &self.packet_groups {
-            if packet_group.expected_number_of_packets == Some(packet_group.packets.len()) {
+            if (packet_group.expected_number_of_packets == Some(packet_group.packets.len())) && (packet_group.file_name.is_some()) {
                 received = true
             } else {
                 received = false
@@ -63,9 +68,9 @@ impl FileManager {
 
         for packet_group in &mut self.packet_groups {
             if packet_group.file_id == packet_id {
-                // TODO: Expected Packets
                 if is_last_data_packet {
-                    // let expected_num_packets =
+                    let expected_num_packets: Option<usize> = Some((data_packet.packet_number + 1) as usize);
+                    packet_group.expected_number_of_packets = expected_num_packets;
                 }
                 packet_group
                     .packets
@@ -85,8 +90,15 @@ impl FileManager {
         self.packet_groups.push(packet_group);
     }
 
-    pub fn write_all_files(&self) {
-        todo!()
+    pub fn write_all_files(&self) -> std::io::Result<()>{
+        for packet_group in &self.packet_groups {
+            let mut file = File::create(packet_group.file_name.clone().unwrap())?;
+
+            for packet in 0u16..(packet_group.packets.len()) as u16 {
+                file.write_all(packet_group.packets.get(&packet).unwrap()).unwrap();
+            }
+        }
+        Ok(())
     }
 }
 
@@ -179,12 +191,23 @@ mod tests {
             file_manager.packet_groups[0].packets.get(&514),
             Some(&vec![3, 3])
         );
-
-        // TODO: Test expected_number_of_packets
     }
 
     #[test]
-    fn test_expected_number_of_packets(){
+    fn test_received_all_packets(){
+        let header_packet_bytes: [u8; 6] = [0, 1, b't', b'e', b's', b't'];
+        let header_packet = HeaderPacket::try_from(&header_packet_bytes[..]).unwrap();
+        let data_packet_bytes_1: [u8; 6] = [1, 1, 0, 1, 3, 3];
+        let data_packet_1 = DataPacket::try_from(&data_packet_bytes_1[..]).unwrap();
+        let data_packet_bytes_2: [u8; 6] = [11, 1, 0, 2, 3, 3];
+        let data_packet_2 = DataPacket::try_from(&data_packet_bytes_2[..]).unwrap();
+        
+        let mut file_manager = FileManager::default();
+        file_manager.process_packet(Packet::HeaderPacket(header_packet));
+        file_manager.process_packet(Packet::DataPacket(data_packet_1));
+        file_manager.process_packet(Packet::DataPacket(data_packet_2));
 
+        assert!(file_manager.received_all_packets())
     }
+
 }

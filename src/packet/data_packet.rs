@@ -36,6 +36,8 @@ impl TryFrom<&[u8]> for DataPacket {
 }
 
 mod tests {
+    // use crate::packet::data_packet::DataPacket;
+
     use crate::packet::data_packet::DataPacket;
 
     #[test]
